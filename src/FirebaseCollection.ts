@@ -53,11 +53,24 @@ export class FirebaseCollection<T>{
         filterConditions.forEach(filterCondition => {
             collRef = collRef.where(filterCondition.field, filterCondition.condition, filterCondition.value);
         });
-                
+        
+        let properties: string[] = Reflect.getMetadata("DocumentField", this.entity);
+
         const query = await collRef.get();
         for (const doc of query.docs) {
-            docs.push(doc.data());
+
+            let docData: any = doc.data();
+            
+            for await (const prop of properties) {
+                if(docData[prop] && docData[prop].constructor.name === 'DocumentReference'){
+                    const ref = await docData[prop].get();
+                    docData[prop] = ref.data();
+                }
+            };
+
+            docs.push(docData);
         }
+
         return docs;
     }
 
@@ -69,7 +82,7 @@ export class FirebaseCollection<T>{
 
         let properties: string[] = Reflect.getMetadata("DocumentField", this.entity);
         for await (const prop of properties) {
-            if(docData[prop].constructor.name === 'DocumentReference'){
+            if(docData[prop] && docData[prop].constructor.name === 'DocumentReference'){
                 const ref = await docData[prop].get();
                 docData[prop] = ref.data();
             }

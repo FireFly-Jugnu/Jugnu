@@ -2,9 +2,20 @@ import 'reflect-metadata';
 import { Jugnu } from '../Jugnu';
 import { CollectionMetaData } from '../Types';
 
-export function FirebaseCollection(target: Function){
-    Reflect.defineMetadata("CollectionName", target.name, target);
-    _addToCollections(target);
+export function FirebaseCollection(collName?: string){
+
+    if(collName){
+        return function firebaseCollection(target: Function){
+            Reflect.defineMetadata("CollectionName", collName, target);
+            _addToCollections(target);
+        }
+    }
+    else{
+        return function firebaseCollection(target: Function){
+            Reflect.defineMetadata("CollectionName", target.name, target);
+            _addToCollections(target);
+        }
+    }
 }
 
 export function DocumentKey(target: any, propertyKey: string) {
