@@ -1,6 +1,7 @@
 import 'reflect-metadata';
-import { FirebaseQueryCondition } from "./Types";
+import { CollectionMetaData, FirebaseQueryCondition } from "./Types";
 import {config, firebaseAdmin} from './Global';
+import { Jugnu } from './Jugnu';
 
 export class FirebaseCollection<T>{
 
@@ -13,20 +14,21 @@ export class FirebaseCollection<T>{
 
     async create(data: any){
         const collectionName = Reflect.getMetadata("CollectionName",this.entity);
-        const keyField = Reflect.getMetadata("DocumentKeyField",this.entity);
+        const keyField: string = Reflect.getMetadata("DocumentKeyField",this.entity);
         let properties: string[] = Reflect.getMetadata("DocumentField", this.entity);
         const id = data[keyField];
         const docuData:any = this._pick(data, properties);
-
         properties.forEach(prop => {
             const t = Reflect.getMetadata("design:type", data, prop);
-            let cn = Reflect.getMetadata("CollectionName",t);
-            if(cn){
-                let refKeyField = Reflect.getMetadata("DocumentKeyField",t);
-                const refData = data[prop];
-                const refKey = refData[refKeyField];
-                const docRef = this.firestore.doc(cn + '/' + refKey);
-                docuData[prop] = docRef;
+            if(t){
+                let cn = Reflect.getMetadata("CollectionName",t);
+                if(cn){
+                    let refKeyField = Reflect.getMetadata("DocumentKeyField",t);
+                    const refData = data[prop];
+                    const refKey = refData[refKeyField];
+                    const docRef = this.firestore.doc(cn + '/' + refKey);
+                    docuData[prop] = docRef;
+                }
             }
         });
 
@@ -59,6 +61,23 @@ export class FirebaseCollection<T>{
         return docs;
     }
 
+    async getDocument<T>(docKey: string | number): Promise<T>{
+
+        const collectionName = Reflect.getMetadata("CollectionName",this.entity);
+        const docRef = await this.firestore.collection(collectionName).doc(docKey).get();
+        let docData: any = docRef.data();
+
+        let properties: string[] = Reflect.getMetadata("DocumentField", this.entity);
+        for await (const prop of properties) {
+            if(docData[prop].constructor.name === 'DocumentReference'){
+                const ref = await docData[prop].get();
+                docData[prop] = ref.data();
+            }
+        };
+
+        return docData as T;
+    }
+
     async delete(data: any){
         const collectionName = Reflect.getMetadata("CollectionName",this.entity);
         const keyProperty = "name";
@@ -80,23 +99,29 @@ export class FirebaseCollection<T>{
     }
 
     async test<T>(data: T){
+
+        const collections: Map<String, CollectionMetaData> = Reflect.getMetadata("Collections", Jugnu);
+        console.log("All Collections: ", collections);
+
         const collectionName = Reflect.getMetadata("CollectionName",this.entity);
         console.log("Collection name:", collectionName);
-
+        
         console.log("Metadata keys:", Reflect.getMetadataKeys(this.entity));
                 
-        const keyField = Reflect.getMetadata("DocumentKeyField",this.entity);
-        console.log("Key Field:", keyField);
+        // const keyField = Reflect.getMetadata("DocumentKeyField",this.entity);
+        // console.log("Key Field:", keyField);
         
         const properties: string[] = Reflect.getMetadata("DocumentField", this.entity);
         console.log("Propery List:", properties);
 
         properties.forEach(prop => {
+            //type propType = T[prop];
             const t = Reflect.getMetadata("design:type", data, prop);
             t? console.log(`${prop} type: ${t.name}`) : console.log("Cant read metadata for", prop);
-
-            let cn = Reflect.getMetadata("CollectionName",t);
-            cn? console.log(`Collection name of : ${t.name} is ${cn}`): cn = undefined;
+            if(t){
+                let cn = Reflect.getMetadata("CollectionName",t);
+                cn? console.log(`Collection name of : ${t.name} is ${cn}`): cn = undefined;
+            }
         });
     }
 

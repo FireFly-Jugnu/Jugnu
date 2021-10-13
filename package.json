@@ -1,6 +1,6 @@
 {
-  "name": "jugnu",
-  "version": "0.0.1",
+  "name": "@fire-fly/jugnu",
+  "version": "0.0.3",
   "description": "Javascript framework for developing Firebase Applications",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",

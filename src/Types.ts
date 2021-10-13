@@ -16,3 +16,13 @@ export interface FirebaseQueryCondition{
 export interface JugnuConfig{
     defaultBucket?: String
 }
+
+export interface FieldMetaData{
+    name: string,
+    type: string
+}
+export interface CollectionMetaData{
+    keyField?: string,
+    documentFields?: FieldMetaData[],
+    storageFileField?: string[]
+}
