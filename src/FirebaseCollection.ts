@@ -12,11 +12,9 @@ export class FirebaseCollection<T>{
         this.entity = entity;
     }
 
-    async create(data: any){
+    async create(data: any): Promise<String> {
         const collectionName = Reflect.getMetadata("CollectionName",this.entity);
-        const keyField: string = Reflect.getMetadata("DocumentKeyField",this.entity);
         let properties: string[] = Reflect.getMetadata("DocumentField", this.entity);
-        const id = data[keyField];
         const docuData:any = this._pick(data, properties);
         properties.forEach(prop => {
             const t = Reflect.getMetadata("design:type", data, prop);
@@ -40,8 +38,17 @@ export class FirebaseCollection<T>{
                 docuData[prop] = bucketFile.publicUrl();
             }
         }
-                        
-        await this.firestore.collection(collectionName).doc(id).set(Object.assign({}, docuData));
+
+        const keyField: string = Reflect.getMetadata("DocumentKeyField",this.entity);
+        if(keyField){
+            const id = data[keyField];
+            let res = await this.firestore.collection(collectionName).doc(id).set(Object.assign({}, docuData));
+            return res.id;
+        }
+        else{
+            let res = await this.firestore.collection(collectionName).add(Object.assign({}, docuData));
+            return res.id;
+        }
     }
 
     async query<T>(filterConditions: FirebaseQueryCondition[]): Promise<T[]>{
