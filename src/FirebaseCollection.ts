@@ -1,5 +1,5 @@
 import 'reflect-metadata';
-import { CollectionMetaData, FirebaseQueryCondition } from "./Types";
+import { CollectionMetaData, DocumentKeyType, FirebaseQueryCondition } from "./Types";
 import {config, firebaseAdmin} from './Global';
 import { Jugnu } from './Jugnu';
 
@@ -40,20 +40,38 @@ export class FirebaseCollection<T>{
         }
 
         const keyField: string = Reflect.getMetadata("DocumentKeyField",this.entity);
-        if(keyField){
-            const id = data[keyField];
-            let res = await this.firestore.collection(collectionName).doc(id).set(Object.assign({}, docuData));
-            return res.id;
+        const keyType = Reflect.getMetadata("DocumentKeyType",this.entity);
+
+        let dataId: String = "";
+
+        switch (keyType) {
+            case DocumentKeyType.UserDefined:
+                dataId = data[keyField];
+                await this.firestore.collection(collectionName).doc(dataId).set(Object.assign({}, docuData));
+                break;
+        
+            case DocumentKeyType.GeneratedKey:
+                const docRef = this.firestore.collection(collectionName).doc();
+                dataId = docuData[keyField] = docRef.id;
+                await docRef.set(Object.assign({}, docuData));
+                break;
+
+            case DocumentKeyType.AutoIncrement:
+                dataId = await this._getNextCounter(collectionName);
+                docuData[keyField] = dataId;
+                await this.firestore.collection(collectionName).doc(dataId).set(Object.assign({}, docuData));
+                break;
         }
-        else{
-            let res = await this.firestore.collection(collectionName).add(Object.assign({}, docuData));
-            return res.id;
-        }
+
+        return dataId;
     }
 
     async query<T>(filterConditions: FirebaseQueryCondition[]): Promise<T[]>{
 
         const collectionName = Reflect.getMetadata("CollectionName",this.entity);
+        const keyField: string = Reflect.getMetadata("DocumentKeyField",this.entity);
+        const keyType = Reflect.getMetadata("DocumentKeyType",this.entity);
+
         const docs: T[] = [];
         var collRef = this.firestore.collection(collectionName);
 
@@ -67,6 +85,9 @@ export class FirebaseCollection<T>{
         for (const doc of query.docs) {
 
             let docData: any = doc.data();
+            if (keyType === DocumentKeyType.GeneratedKey || keyType === DocumentKeyType.AutoIncrement) {
+                docData[keyField] = doc.id;
+            }
             
             for await (const prop of properties) {
                 if(docData[prop] && docData[prop].constructor.name === 'DocumentReference'){
@@ -84,12 +105,22 @@ export class FirebaseCollection<T>{
     async getDocument<T>(docKey: string | number): Promise<T>{
 
         const collectionName = Reflect.getMetadata("CollectionName",this.entity);
+        const keyField: string = Reflect.getMetadata("DocumentKeyField",this.entity);
+        const keyType = Reflect.getMetadata("DocumentKeyType",this.entity);
+
         const docRef = await this.firestore.collection(collectionName).doc(docKey).get();
         let docData: any = docRef.data();
+
+        if (keyType === DocumentKeyType.GeneratedKey || keyType === DocumentKeyType.AutoIncrement) {
+            docData[keyField] = docRef.id;
+        }
 
         let properties: string[] = Reflect.getMetadata("DocumentField", this.entity);
         for await (const prop of properties) {
             if(docData[prop] && docData[prop].constructor.name === 'DocumentReference'){
+                
+                //const refCollName = docData[prop].parent.id;
+                //console.log("Ref Coll Name", refCollName);
                 const ref = await docData[prop].get();
                 docData[prop] = ref.data();
             }
@@ -116,6 +147,37 @@ export class FirebaseCollection<T>{
 
     _pick(o: any, props:string[]) {
         return Object.assign({}, ...props.map(prop => ({[prop]: o[prop]})));
+    }
+
+    async _getNextCounter(collName: string){
+
+        const FieldValue = firebaseAdmin.firestore.FieldValue;
+        const sq = this.firestore.collection("JugnuSettings").doc("Counters");
+        const sc = await sq.get();
+        let nextCounter = 0;
+
+        if (sc.data()) {
+            if (sc.data()[collName]) {
+                nextCounter = sc.data()[collName] + 1;
+                const cupd: any = {};
+                cupd[collName] = FieldValue.increment(1);
+                await sq.update(cupd);
+            }
+            else{
+                const counterUpdate: any = {};
+                counterUpdate[collName] = 1;
+                await sq.update(counterUpdate);
+                nextCounter = 1;
+            }
+        }
+        else{
+            const counters:any = {};
+            counters[collName] = 1;
+            await this.firestore.collection('JugnuSettings').doc('Counters').set(counters);
+            nextCounter = 1;
+        }
+        
+        return nextCounter.toString();
     }
 
     async test<T>(data: T){

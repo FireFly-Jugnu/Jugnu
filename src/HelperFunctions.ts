@@ -5,6 +5,7 @@ import { JugnuConfig } from "./Types";
 export function initialize(cf: JugnuConfig){
     if (firebaseAdmin.apps.length === 0) {
         firebaseAdmin.initializeApp();
+        firebaseAdmin.firestore().settings({ignoreUndefinedProperties: true});
     }
     config.defaultBucket = cf.defaultBucket;
 }

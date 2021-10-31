@@ -26,3 +26,9 @@ export interface CollectionMetaData{
     documentFields?: FieldMetaData[],
     storageFileField?: string[]
 }
+
+export enum DocumentKeyType{
+    UserDefined = 0,
+    GeneratedKey = 1,
+    AutoIncrement = 2
+}

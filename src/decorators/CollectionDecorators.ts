@@ -1,6 +1,6 @@
 import 'reflect-metadata';
 import { Jugnu } from '../Jugnu';
-import { CollectionMetaData } from '../Types';
+import { CollectionMetaData, DocumentKeyType } from '../Types';
 
 export function FirebaseCollection(collName?: string){
 
@@ -18,13 +18,22 @@ export function FirebaseCollection(collName?: string){
     }
 }
 
-export function DocumentKey(target: any, propertyKey: string) {
-    Reflect.defineMetadata("DocumentKeyField", propertyKey, target.constructor);
-    //const collections: Map<String, CollectionMetaData> = Reflect.getMetadata("Collections", Jugnu);
-    //console.log("In DocKey PropKey:", propertyKey);console.log("In DocKey collections:", collections);
-    // const metadata = collections.get(propertyKey);
-    // if(metadata) metadata.keyField = propertyKey;
-    _registerDocumentField(target, propertyKey);
+export function DocumentKey(docKeyType?: DocumentKeyType){
+
+    const keyType = docKeyType? docKeyType: DocumentKeyType.UserDefined;
+
+    return function documentKey(target: any, propertyKey: string){
+
+        Reflect.defineMetadata("DocumentKeyField", propertyKey, target.constructor);
+        Reflect.defineMetadata("DocumentKeyType", keyType, target.constructor);
+        
+        //const collections: Map<String, CollectionMetaData> = Reflect.getMetadata("Collections", Jugnu);
+        //console.log("In DocKey PropKey:", propertyKey);console.log("In DocKey collections:", collections);
+        // const metadata = collections.get(propertyKey);
+        // if(metadata) metadata.keyField = propertyKey;
+        _registerDocumentField(target, propertyKey);
+
+    }
 }
 
 export function DocumentField(target: any, propertyKey: string) {
