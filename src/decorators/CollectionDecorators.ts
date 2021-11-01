@@ -45,6 +45,15 @@ export function StorageFile(target: any, propertyKey: string) {
     //_registerDocumentField(target, propertyKey);
 }
 
+export function AutoIncrement(target: any, propertyKey: string) {
+    const properties: String[] = Reflect.getMetadata("AutoIncrementFields", target.constructor);
+    properties? properties.push(propertyKey) : Reflect.defineMetadata("AutoIncrementFields", [propertyKey], target.constructor);
+}
+
+export function SystemAdminData(target: any, propertyKey: string) {
+    Reflect.defineMetadata("SystemAdminData", propertyKey, target.constructor);
+}
+
 function _registerDocumentField(target: any, propertyKey: string) {
     const properties: String[] = Reflect.getMetadata("DocumentField", target.constructor);
     properties? properties.push(propertyKey) : Reflect.defineMetadata("DocumentField", [propertyKey], target.constructor);

@@ -1,5 +1,5 @@
 import 'reflect-metadata';
-import { CollectionMetaData, DocumentKeyType, FirebaseQueryCondition } from "./Types";
+import { CollectionMetaData, DocumentKeyType, FirebaseQueryCondition, SystemAdminData } from "./Types";
 import {config, firebaseAdmin} from './Global';
 import { Jugnu } from './Jugnu';
 
@@ -39,6 +39,23 @@ export class FirebaseCollection<T>{
             }
         }
 
+        // Set value of auto increment fields
+        let autoIncrementFields: string[] = Reflect.getMetadata("AutoIncrementFields", this.entity);
+        autoIncrementFields = autoIncrementFields? autoIncrementFields: [];
+        for await (const prop of autoIncrementFields) {
+            const nextNo = await this._getNextCounter(collectionName + "__" + prop);
+            docuData[prop] = nextNo;
+        }
+        
+        // System Admin Data
+        const FieldValue = firebaseAdmin.firestore.FieldValue;
+        const sysAdminDataField = Reflect.getMetadata("SystemAdminData", this.entity);
+        if(sysAdminDataField){
+            const sysAdminData: SystemAdminData = {};
+            sysAdminData.createdAt = sysAdminData.changedAt = new Date();
+            docuData[sysAdminDataField] = sysAdminData;
+        }
+
         const keyField: string = Reflect.getMetadata("DocumentKeyField",this.entity);
         const keyType = Reflect.getMetadata("DocumentKeyType",this.entity);
 
@@ -57,7 +74,7 @@ export class FirebaseCollection<T>{
                 break;
 
             case DocumentKeyType.AutoIncrement:
-                dataId = await this._getNextCounter(collectionName);
+                dataId = (await this._getNextCounter(collectionName)).toString();
                 docuData[keyField] = dataId;
                 await this.firestore.collection(collectionName).doc(dataId).set(Object.assign({}, docuData));
                 break;
@@ -149,7 +166,7 @@ export class FirebaseCollection<T>{
         return Object.assign({}, ...props.map(prop => ({[prop]: o[prop]})));
     }
 
-    async _getNextCounter(collName: string){
+    async _getNextCounter(collName: string): Promise<number>{
 
         const FieldValue = firebaseAdmin.firestore.FieldValue;
         const sq = this.firestore.collection("JugnuSettings").doc("Counters");
@@ -177,7 +194,7 @@ export class FirebaseCollection<T>{
             nextCounter = 1;
         }
         
-        return nextCounter.toString();
+        return nextCounter;
     }
 
     async test<T>(data: T){

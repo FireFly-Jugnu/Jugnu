@@ -11,12 +11,16 @@ import {
     FirebaseCollection, 
     DocumentField,
     DocumentKey,
-    StorageFile
+    StorageFile,
+    AutoIncrement,
+    SystemAdminData
 } from './decorators/CollectionDecorators';
 
 export {
     FirebaseCollection,
     DocumentField,
     DocumentKey,
-    StorageFile
+    StorageFile,
+    AutoIncrement,
+    SystemAdminData
 }

@@ -1,22 +1,35 @@
-export interface FirebaseEntity{
-    id: String;
-}
-
 export interface StorageFile{
-    name: String,
-    uri: String
+    name: string,
+    uri: string
 }
 
 export interface FirebaseQueryCondition{
-    field: String,
-    condition: String,
-    value: String
+    field: string,
+    condition: string,
+    value: string
 }
 
 export interface JugnuConfig{
-    defaultBucket?: String
+    defaultBucket?: string
 }
 
+export interface SystemAdminData{
+    createdBy?: any,
+    createdAt?: Date,
+    changedBy?: any,
+    changedAt?: Date
+}
+
+export enum DocumentKeyType{
+    UserDefined = 0,
+    GeneratedKey = 1,
+    AutoIncrement = 2
+}
+
+// Not used as of now
+export interface FirebaseEntity{
+    id: string;
+}
 export interface FieldMetaData{
     name: string,
     type: string
@@ -25,10 +38,4 @@ export interface CollectionMetaData{
     keyField?: string,
     documentFields?: FieldMetaData[],
     storageFileField?: string[]
-}
-
-export enum DocumentKeyType{
-    UserDefined = 0,
-    GeneratedKey = 1,
-    AutoIncrement = 2
 }
