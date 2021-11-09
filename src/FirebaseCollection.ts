@@ -12,7 +12,7 @@ export class FirebaseCollection<T>{
         this.entity = entity;
     }
 
-    async create(data: any): Promise<String> {
+    async create(data: any): Promise<string> {
         const collectionName = Reflect.getMetadata("CollectionName",this.entity);
         let properties: string[] = Reflect.getMetadata("DocumentField", this.entity);
         const docuData:any = this._pick(data, properties);
@@ -23,9 +23,11 @@ export class FirebaseCollection<T>{
                 if(cn){
                     let refKeyField = Reflect.getMetadata("DocumentKeyField",t);
                     const refData = data[prop];
-                    const refKey = refData[refKeyField];
-                    const docRef = this.firestore.doc(cn + '/' + refKey);
-                    docuData[prop] = docRef;
+                    if(refData){
+                        const refKey = refData[refKeyField];
+                        const docRef = this.firestore.doc(cn + '/' + refKey);
+                        docuData[prop] = docRef;
+                    }
                 }
             }
         });
@@ -34,8 +36,10 @@ export class FirebaseCollection<T>{
         if(properties){
             for (const prop of properties) {
                 const storageFile = data[prop];
-                const bucketFile = await this._uploadFile(storageFile);
-                docuData[prop] = bucketFile.publicUrl();
+                if(storageFile){
+                    const bucketFile = await this._uploadFile(storageFile);
+                    docuData[prop] = bucketFile.publicUrl();
+                }
             }
         }
 
@@ -59,7 +63,7 @@ export class FirebaseCollection<T>{
         const keyField: string = Reflect.getMetadata("DocumentKeyField",this.entity);
         const keyType = Reflect.getMetadata("DocumentKeyType",this.entity);
 
-        let dataId: String = "";
+        let dataId: string = "";
 
         switch (keyType) {
             case DocumentKeyType.UserDefined:
