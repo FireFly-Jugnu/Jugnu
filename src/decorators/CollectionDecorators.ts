@@ -1,6 +1,6 @@
 import 'reflect-metadata';
 import { Jugnu } from '../Jugnu';
-import { CollectionMetaData, DocumentKeyType } from '../Types';
+import { CollectionMetaData, DocumentKeyType, EventName } from '../Types';
 
 export function FirebaseCollection(collName?: string){
 
@@ -15,6 +15,15 @@ export function FirebaseCollection(collName?: string){
             Reflect.defineMetadata("CollectionName", target.name, target);
             _addToCollections(target);
         }
+    }
+}
+
+export function PublishEvent(event: EventName, topic?: string){
+
+    return function publishEvent(target: Function){
+
+        const topicName = topic? topic : event + "-" + target.name;
+        Reflect.defineMetadata(event, topicName, target);
     }
 }
 

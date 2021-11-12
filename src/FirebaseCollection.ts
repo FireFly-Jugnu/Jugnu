@@ -1,6 +1,6 @@
 import 'reflect-metadata';
-import { CollectionMetaData, DocumentKeyType, FirebaseQueryCondition, SystemAdminData } from "./Types";
-import {config, firebaseAdmin} from './Global';
+import { CollectionMetaData, DocumentKeyType, FirebaseQueryCondition, SystemAdminData, EventName } from "./Types";
+import {config, firebaseAdmin, pubSubClient} from './Global';
 import { Jugnu } from './Jugnu';
 
 export class FirebaseCollection<T>{
@@ -84,24 +84,35 @@ export class FirebaseCollection<T>{
                 break;
         }
 
+        // Publish Event
+        await this._publishEvent(EventName.OnCreate, dataId);
+
         return dataId;
     }
 
     async query<T>(filterConditions: FirebaseQueryCondition[]): Promise<T[]>{
 
-        const collectionName = Reflect.getMetadata("CollectionName",this.entity);
+        const collectionName = Reflect.getMetadata("CollectionName",this.entity);        
         const keyField: string = Reflect.getMetadata("DocumentKeyField",this.entity);
         const keyType = Reflect.getMetadata("DocumentKeyType",this.entity);
+        let properties: string[] = Reflect.getMetadata("DocumentField", this.entity);
 
         const docs: T[] = [];
         var collRef = this.firestore.collection(collectionName);
 
         filterConditions.forEach(filterCondition => {
-            collRef = collRef.where(filterCondition.field, filterCondition.condition, filterCondition.value);
+
+            const t = filterCondition.referenceCollection;
+            if(t){
+                const refData = this.firestore.collection(t).doc(filterCondition.value);
+                collRef = collRef.where(filterCondition.field, filterCondition.condition, refData);
+            }
+            else{
+                collRef = collRef.where(filterCondition.field, filterCondition.condition, filterCondition.value);
+            }
         });
         
-        let properties: string[] = Reflect.getMetadata("DocumentField", this.entity);
-
+        
         const query = await collRef.get();
         for (const doc of query.docs) {
 
@@ -150,11 +161,66 @@ export class FirebaseCollection<T>{
         return docData as T;
     }
 
+    async update(data: any){
+
+        const collectionName = Reflect.getMetadata("CollectionName",this.entity);
+        let properties: string[] = Reflect.getMetadata("DocumentField", this.entity);
+
+        const docuData:any = this._pick(data, properties);
+        
+        properties.forEach(prop => {
+            const t = Reflect.getMetadata("design:type", data, prop);
+            if(t){
+                let cn = Reflect.getMetadata("CollectionName",t);
+                if(cn){
+                    let refKeyField = Reflect.getMetadata("DocumentKeyField",t);
+                    const refData = data[prop];
+                    if(refData){
+                        const refKey = refData[refKeyField];
+                        const docRef = this.firestore.doc(cn + '/' + refKey);
+                        docuData[prop] = docRef;
+                    }
+                }
+            }
+        });
+
+        properties = Reflect.getMetadata("StorageFile", this.entity);
+        if(properties){
+            for (const prop of properties) {
+                const storageFile = data[prop];
+                if(storageFile){
+                    const bucketFile = await this._uploadFile(storageFile);
+                    docuData[prop] = bucketFile.publicUrl();
+                }
+            }
+        }
+        
+        // System Admin Data
+        const FieldValue = firebaseAdmin.firestore.FieldValue;
+        const sysAdminDataField = Reflect.getMetadata("SystemAdminData", this.entity);
+        if(sysAdminDataField){
+            const sysAdminData: SystemAdminData = data[sysAdminDataField];
+            sysAdminData.changedAt = new Date();
+            docuData[sysAdminDataField] = sysAdminData;
+        }
+
+        const keyField: string = Reflect.getMetadata("DocumentKeyField",this.entity);
+
+        const dataId = data[keyField];
+        const updateRef = this.firestore.collection(collectionName).doc(dataId);
+        await updateRef.update(docuData);
+
+        // Publish Event
+        await this._publishEvent(EventName.OnUpdate, dataId);
+    }
+
     async delete(data: any){
         const collectionName = Reflect.getMetadata("CollectionName",this.entity);
-        const keyProperty = "name";
-        const id = data[keyProperty];
+        const keyField: string = Reflect.getMetadata("DocumentKeyField",this.entity);
+        const id = data[keyField];
         await this.firestore.collection(collectionName).doc(id).delete();
+        // Publish Event
+        await this._publishEvent(EventName.OnDelete, id);
     }
 
     async _uploadFile(storageFile: any){
@@ -199,6 +265,36 @@ export class FirebaseCollection<T>{
         }
         
         return nextCounter;
+    }
+
+    async _publishEvent(eventName: EventName, dataId: string){
+
+        const topicId = Reflect.getMetadata(eventName,this.entity);
+        if(!topicId){
+            return;
+        }
+
+        const projectName = process.env.GOOGLE_CLOUD_PROJECT;
+        const topicName = "projects/" + projectName + "/topics/" + topicId;
+
+        const [topics] = await pubSubClient.getTopics();
+        const topic = topics.find((topic: any) => topic.name === topicName);
+        if(topic){
+            // Topic already exists
+            console.log(`Topic ${topic.name} already exists`);
+        }
+        else{
+            // Topic does not exist.
+            console.log(`New topic with name ${topicName} will be created`);
+            await pubSubClient.createTopic(topicName);
+        }
+
+        // Now publish
+        const dataBuffer = Buffer.from(JSON.stringify({dataId: dataId}));
+        const messageId = await pubSubClient.topic(topicName).publish(dataBuffer);
+        console.log("Message published:", messageId);
+        return messageId;
+
     }
 
     async test<T>(data: T){

@@ -13,7 +13,8 @@ import {
     DocumentKey,
     StorageFile,
     AutoIncrement,
-    SystemAdminData
+    SystemAdminData,
+    PublishEvent
 } from './decorators/CollectionDecorators';
 
 export {
@@ -22,5 +23,6 @@ export {
     DocumentKey,
     StorageFile,
     AutoIncrement,
-    SystemAdminData
+    SystemAdminData,
+    PublishEvent
 }
