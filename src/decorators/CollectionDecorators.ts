@@ -49,6 +49,13 @@ export function DocumentField(target: any, propertyKey: string) {
     _registerDocumentField(target, propertyKey);
 }
 
+export function DocumentArrayField(arrayType: Function) {
+    return function _registerDocumentArrayField(target: any, propertyKey: string) {
+        _registerDocumentField(target, propertyKey);
+        Reflect.defineMetadata("design:ArrayType", arrayType, target, propertyKey);
+    }
+}
+
 export function StorageFile(target: any, propertyKey: string) {
     _registerStorageFileField(target, propertyKey);
     //_registerDocumentField(target, propertyKey);
@@ -70,8 +77,19 @@ function _registerDocumentField(target: any, propertyKey: string) {
     //console.log("In Docfield PropKey:", propertyKey);console.log("In Docfield collections:", collections);
     // const metadata = collections.get(propertyKey);
     //console.log(target[propertyKey]);
-    //const t = Reflect.getMetadata("design:type", target, propertyKey);
-    //console.log(`In Docfield PropKey, type of ${propertyKey} : ${t}`);
+    // const t = Reflect.getMetadata("design:type", target, propertyKey);
+    // console.log(`In Docfield PropKey, type of ${propertyKey} : ${t.name}`);
+
+    // if (t.name === 'Array') {
+    //     console.log("Type of t =>", t.constructor.name);
+    //     console.log(t.isArray()) // true
+    //     //console.log("Type of t => ",typeof(t).GetElementType());   
+    // }
+
+    // type a = Array<typeof t>;
+    // type ai = a[0];
+    // console.log(`Array type:: ${a.}`);
+    // console.log("Araay Item type", ai);
     // if(metadata) metadata.documentFields?.push({name: propertyKey, type: t});
 }
 

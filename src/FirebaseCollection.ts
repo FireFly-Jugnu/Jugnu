@@ -13,36 +13,12 @@ export class FirebaseCollection<T>{
     }
 
     async create(data: any): Promise<string> {
+
         const collectionName = Reflect.getMetadata("CollectionName",this.entity);
-        let properties: string[] = Reflect.getMetadata("DocumentField", this.entity);
-        const docuData:any = this._pick(data, properties);
-        properties.forEach(prop => {
-            const t = Reflect.getMetadata("design:type", data, prop);
-            if(t){
-                let cn = Reflect.getMetadata("CollectionName",t);
-                if(cn){
-                    let refKeyField = Reflect.getMetadata("DocumentKeyField",t);
-                    const refData = data[prop];
-                    if(refData){
-                        const refKey = refData[refKeyField];
-                        const docRef = this.firestore.doc(cn + '/' + refKey);
-                        docuData[prop] = docRef;
-                    }
-                }
-            }
-        });
-
-        properties = Reflect.getMetadata("StorageFile", this.entity);
-        if(properties){
-            for (const prop of properties) {
-                const storageFile = data[prop];
-                if(storageFile){
-                    const bucketFile = await this._uploadFile(storageFile);
-                    docuData[prop] = bucketFile.publicUrl();
-                }
-            }
-        }
-
+        
+        // Prepare data for CRUD.
+        let docuData = await this._prepareDataForCRUD(data, this.entity);
+        
         // Set value of auto increment fields
         let autoIncrementFields: string[] = Reflect.getMetadata("AutoIncrementFields", this.entity);
         autoIncrementFields = autoIncrementFields? autoIncrementFields: [];
@@ -223,6 +199,14 @@ export class FirebaseCollection<T>{
         await this._publishEvent(EventName.OnDelete, id);
     }
 
+    getReference(data: any){
+        const collectionName = Reflect.getMetadata("CollectionName",this.entity);
+        const keyField: string = Reflect.getMetadata("DocumentKeyField",this.entity);
+        const id = data[keyField];
+        const docRef = this.firestore.doc(collectionName + '/' + id);
+        return docRef;
+    }
+
     async _uploadFile(storageFile: any){
         const storage = firebaseAdmin.storage();
         const bucket = storage.bucket(config.defaultBucket);
@@ -297,22 +281,124 @@ export class FirebaseCollection<T>{
 
     }
 
-    async test<T>(data: T){
+    async _prepareDataForCRUD(data: any, entityName: any) {
 
-        const collections: Map<String, CollectionMetaData> = Reflect.getMetadata("Collections", Jugnu);
-        console.log("All Collections: ", collections);
+        let properties: string[] = Reflect.getMetadata("DocumentField", entityName);
+        //console.log(`Processing properties of ${entityName.name}. Property list: `, properties);
+        
+        const docuData:any = this._pick(data, properties);
+
+        for await (const prop of properties) {
+            
+            const t = Reflect.getMetadata("design:type", data, prop);
+            if(t.name === 'Array'){
+
+                const itemType = Reflect.getMetadata("design:ArrayType", data, prop);
+                if(itemType){
+                    let tempData = [];
+                    for await (const arrayItem of data[prop]) {
+                        tempData.push(await this._prepareDataForCRUD(arrayItem, itemType));
+                    }
+                    //console.log("Temp data", tempData);
+                    docuData[prop] = tempData;
+                }
+            }
+            else{
+                // Not an array.
+                if(t){
+                    let cn = Reflect.getMetadata("CollectionName",t);
+                    if(cn){
+                        let refKeyField = Reflect.getMetadata("DocumentKeyField",t);
+                        const refData = data[prop];
+                        if(refData){
+                            const refKey = refData[refKeyField];
+                            const docRef = this.firestore.doc(cn + '/' + refKey);
+                            docuData[prop] = docRef;
+                        }
+                    }
+                    else{
+                        // This is not a collection. Just check if this object has any properties.
+                        if (typeof data[prop] === 'object') {
+                            let objProperties: string[] = Reflect.getMetadata("DocumentField", t);
+                            if(objProperties){
+                                // We get some properties.
+                                docuData[prop] = await this._prepareDataForCRUD(data[prop], t);
+                            }
+                            else{
+                                //console.log("Skipping for ", prop);
+                            }
+                        }
+                    }
+                }
+            }
+        };
+
+        // Process the Storage File Properties.
+        properties = Reflect.getMetadata("StorageFile", entityName);
+        if(properties){
+            for (const prop of properties) {
+                const storageFile = data[prop];
+                if(storageFile){
+                    if (Array.isArray(storageFile)) {
+                        docuData[prop] = [];
+                        for await (const file of storageFile) {
+                            const bucketFile = await this._uploadFile(file);
+                            docuData[prop].push({name: file.name, file: bucketFile.publicUrl()});
+                        }
+                    }
+                    else{
+                        const bucketFile = await this._uploadFile(storageFile);
+                        docuData[prop] = {name: storageFile.name, file: bucketFile.publicUrl()};
+                    }
+                }
+            }
+        }
+
+        return docuData;
+    }
+
+    async testCreate(data: any){
+
+        let docuData = await this._prepareDataForCRUD(data, this.entity);
+        return docuData;
+    }
+
+    async test(data: any){
 
         const collectionName = Reflect.getMetadata("CollectionName",this.entity);
-        console.log("Collection name:", collectionName);
-        
+        console.log("Collection Name:", collectionName);
         console.log("Metadata keys:", Reflect.getMetadataKeys(this.entity));
-                
-        // const keyField = Reflect.getMetadata("DocumentKeyField",this.entity);
-        // console.log("Key Field:", keyField);
-        
-        const properties: string[] = Reflect.getMetadata("DocumentField", this.entity);
-        console.log("Propery List:", properties);
 
+        let properties: string[] = Reflect.getMetadata("DocumentField", this.entity);
+        console.log("DocumentField List:", properties);
+
+        properties.forEach(prop => {
+            //type propType = T[prop];
+            console.log("-----------------------");
+            let t = Reflect.getMetadata("design:type", data, prop);
+            t? console.log(`${prop} type: ${t.name}`) : console.log("Cant read metadata for", prop);
+            if(t){
+                if (t.name === 'Array') {
+                    let t1 = Reflect.getMetadata("design:ArrayType", data, prop);
+                    t1? console.log(`${prop} ArrayType : ${t1.name}`) : console.log("Cant read metadata for array object", prop);
+                }
+                let cn = Reflect.getMetadata("CollectionName",t);
+                cn? console.log(`Collection name of : ${t.name} is ${cn}`): console.log(`Cant read collection name for ${t.name}`);
+            }
+
+            if (typeof data[prop] === 'object') {
+                if (Object.keys(data[prop])) {
+                    console.log(`Property  ${prop} has keys`);
+                }
+                let objProperties: string[] = Reflect.getMetadata("DocumentField", t);
+                console.log("Obj Properties ", objProperties);
+            }
+        });
+
+        console.log("====================");
+        properties = Reflect.getMetadata("StorageFile", this.entity);
+        properties = properties? properties : [];
+        console.log("StorageFile List:", properties);
         properties.forEach(prop => {
             //type propType = T[prop];
             const t = Reflect.getMetadata("design:type", data, prop);

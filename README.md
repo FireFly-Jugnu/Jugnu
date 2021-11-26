@@ -6,6 +6,8 @@ Install : `npm install @fire-fly/jugnu`
 
 Check out the details documentation and usage on [Help and Documentation](https://firefly-jugnu.github.io)
 
+[NPM Link](https://www.npmjs.com/package/@fire-fly/jugnu)
+
 # Bug Reporting and Contributions
 Please report bugs by creating GitHub issue. 
 
