@@ -1,7 +1,7 @@
 import 'reflect-metadata';
 import { CollectionMetaData, DocumentKeyType, FirebaseQueryCondition, SystemAdminData, EventName } from "./Types";
 import {config, firebaseAdmin, pubSubClient} from './Global';
-import { Jugnu } from './Jugnu';
+import { v4 as uuidv4 } from 'uuid';
 
 export class FirebaseCollection<T>{
 
@@ -51,6 +51,11 @@ export class FirebaseCollection<T>{
                 const docRef = this.firestore.collection(collectionName).doc();
                 dataId = docuData[keyField] = docRef.id;
                 await docRef.set(Object.assign({}, docuData));
+                break;
+
+            case DocumentKeyType.UUIDKey:
+                docuData[keyField] = uuidv4();
+                await this.firestore.collection(collectionName).doc(dataId).set(Object.assign({}, docuData));
                 break;
 
             case DocumentKeyType.AutoIncrement:
@@ -110,13 +115,17 @@ export class FirebaseCollection<T>{
         return docs;
     }
 
-    async getDocument<T>(docKey: string | number): Promise<T>{
+    async getDocument<T>(docKey: string | number): Promise<T | undefined>{
 
         const collectionName = Reflect.getMetadata("CollectionName",this.entity);
         const keyField: string = Reflect.getMetadata("DocumentKeyField",this.entity);
         const keyType = Reflect.getMetadata("DocumentKeyType",this.entity);
 
         const docRef = await this.firestore.collection(collectionName).doc(docKey).get();
+        if(!docRef){
+            return undefined;
+        }
+
         let docData: any = docRef.data();
 
         if (keyType === DocumentKeyType.GeneratedKey || keyType === DocumentKeyType.AutoIncrement) {

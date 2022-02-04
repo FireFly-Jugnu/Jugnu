@@ -24,7 +24,8 @@ export interface SystemAdminData{
 export enum DocumentKeyType{
     UserDefined = 0,
     GeneratedKey = 1,
-    AutoIncrement = 2
+    AutoIncrement = 2,
+    UUIDKey = 3
 }
 
 export enum EventName {
