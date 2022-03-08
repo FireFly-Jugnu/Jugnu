@@ -54,7 +54,8 @@ export class FirebaseCollection<T>{
                 break;
 
             case DocumentKeyType.UUIDKey:
-                docuData[keyField] = uuidv4();
+                dataId = uuidv4();
+                docuData[keyField] = dataId;
                 await this.firestore.collection(collectionName).doc(dataId).set(Object.assign({}, docuData));
                 break;
 
@@ -305,8 +306,20 @@ export class FirebaseCollection<T>{
                 const itemType = Reflect.getMetadata("design:ArrayType", data, prop);
                 if(itemType){
                     let tempData = [];
-                    for await (const arrayItem of data[prop]) {
-                        tempData.push(await this._prepareDataForCRUD(arrayItem, itemType));
+                    let cn = Reflect.getMetadata("CollectionName",itemType);
+                    //console.log("Type of Array", cn);
+                    if(cn){
+                        let refKeyField = Reflect.getMetadata("DocumentKeyField",itemType);
+                        for await (const arrayItem of data[prop]) {
+                            const refKey = arrayItem[refKeyField];
+                            const docRef = this.firestore.doc(cn + '/' + refKey);
+                            tempData.push(docRef);
+                        }
+                    }
+                    else{
+                        for await (const arrayItem of data[prop]) {
+                            tempData.push(await this._prepareDataForCRUD(arrayItem, itemType));
+                        }    
                     }
                     //console.log("Temp data", tempData);
                     docuData[prop] = tempData;
