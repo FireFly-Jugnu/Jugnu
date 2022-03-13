@@ -116,18 +116,18 @@ export class FirebaseCollection<T>{
         return docs;
     }
 
-    async getDocument<T>(docKey: string | number): Promise<T | undefined>{
+    async getDocument<T>(docKey: string | number): Promise<T>{
 
         const collectionName = Reflect.getMetadata("CollectionName",this.entity);
         const keyField: string = Reflect.getMetadata("DocumentKeyField",this.entity);
         const keyType = Reflect.getMetadata("DocumentKeyType",this.entity);
 
         const docRef = await this.firestore.collection(collectionName).doc(docKey).get();
-        if(!docRef){
-            return undefined;
-        }
-
         let docData: any = docRef.data();
+        
+        if(!docData){
+            return docData as T;
+        }
 
         if (keyType === DocumentKeyType.GeneratedKey || keyType === DocumentKeyType.AutoIncrement) {
             docData[keyField] = docRef.id;
@@ -150,37 +150,10 @@ export class FirebaseCollection<T>{
     async update(data: any){
 
         const collectionName = Reflect.getMetadata("CollectionName",this.entity);
-        let properties: string[] = Reflect.getMetadata("DocumentField", this.entity);
 
-        const docuData:any = this._pick(data, properties);
-        
-        properties.forEach(prop => {
-            const t = Reflect.getMetadata("design:type", data, prop);
-            if(t){
-                let cn = Reflect.getMetadata("CollectionName",t);
-                if(cn){
-                    let refKeyField = Reflect.getMetadata("DocumentKeyField",t);
-                    const refData = data[prop];
-                    if(refData){
-                        const refKey = refData[refKeyField];
-                        const docRef = this.firestore.doc(cn + '/' + refKey);
-                        docuData[prop] = docRef;
-                    }
-                }
-            }
-        });
+        // Prepare data for CRUD.
+        let docuData = await this._prepareDataForCRUD(data, this.entity);
 
-        properties = Reflect.getMetadata("StorageFile", this.entity);
-        if(properties){
-            for (const prop of properties) {
-                const storageFile = data[prop];
-                if(storageFile){
-                    const bucketFile = await this._uploadFile(storageFile);
-                    docuData[prop] = bucketFile.publicUrl();
-                }
-            }
-        }
-        
         // System Admin Data
         const FieldValue = firebaseAdmin.firestore.FieldValue;
         const sysAdminDataField = Reflect.getMetadata("SystemAdminData", this.entity);
@@ -294,13 +267,14 @@ export class FirebaseCollection<T>{
     async _prepareDataForCRUD(data: any, entityName: any) {
 
         let properties: string[] = Reflect.getMetadata("DocumentField", entityName);
-        //console.log(`Processing properties of ${entityName.name}. Property list: `, properties);
+        console.log(`Processing properties of ${entityName.name}. Property list: `, properties);
         
         const docuData:any = this._pick(data, properties);
 
         for await (const prop of properties) {
             
             const t = Reflect.getMetadata("design:type", data, prop);
+            console.log(prop, t);
             if(t.name === 'Array'){
 
                 const itemType = Reflect.getMetadata("design:ArrayType", data, prop);
