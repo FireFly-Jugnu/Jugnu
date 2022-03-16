@@ -173,6 +173,35 @@ export class FirebaseCollection<T>{
         await this._publishEvent(EventName.OnUpdate, dataId);
     }
 
+    async updateFields(data: any, fields: string[]){
+
+        const collectionName = Reflect.getMetadata("CollectionName",this.entity);
+
+        // Prepare data for CRUD.
+        let docuData: any = {};
+        fields.forEach(field => {
+            docuData[field] = data[field];
+        });
+
+        // System Admin Data
+        const FieldValue = firebaseAdmin.firestore.FieldValue;
+        const sysAdminDataField = Reflect.getMetadata("SystemAdminData", this.entity);
+        if(sysAdminDataField){
+            const sysAdminData: SystemAdminData = data[sysAdminDataField];
+            sysAdminData.lastChangedAt = new Date();
+            docuData[sysAdminDataField] = sysAdminData;
+        }
+
+        const keyField: string = Reflect.getMetadata("DocumentKeyField",this.entity);
+
+        const dataId = data[keyField];
+        const updateRef = this.firestore.collection(collectionName).doc(dataId);
+        await updateRef.update(docuData);
+
+        // Publish Event
+        await this._publishEvent(EventName.OnUpdate, dataId);
+    }
+
     async delete(data: any){
         const collectionName = Reflect.getMetadata("CollectionName",this.entity);
         const keyField: string = Reflect.getMetadata("DocumentKeyField",this.entity);
