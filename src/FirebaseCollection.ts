@@ -32,7 +32,7 @@ export class FirebaseCollection<T>{
         const sysAdminDataField = Reflect.getMetadata("SystemAdminData", this.entity);
         if(sysAdminDataField){
             const sysAdminData: SystemAdminData = {};
-            sysAdminData.createdAt = sysAdminData.changedAt = new Date();
+            sysAdminData.createdAt = sysAdminData.lastChangedAt = new Date();
             docuData[sysAdminDataField] = sysAdminData;
         }
 
@@ -159,7 +159,7 @@ export class FirebaseCollection<T>{
         const sysAdminDataField = Reflect.getMetadata("SystemAdminData", this.entity);
         if(sysAdminDataField){
             const sysAdminData: SystemAdminData = data[sysAdminDataField];
-            sysAdminData.changedAt = new Date();
+            sysAdminData.lastChangedAt = new Date();
             docuData[sysAdminDataField] = sysAdminData;
         }
 

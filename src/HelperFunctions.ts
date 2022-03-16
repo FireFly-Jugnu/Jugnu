@@ -7,7 +7,7 @@ export function initialize(cf: JugnuConfig){
         firebaseAdmin.initializeApp();
         firebaseAdmin.firestore().settings({ignoreUndefinedProperties: true});
     }
-    config.defaultBucket = cf.defaultBucket;
+    config.defaultBucket = cf.defaultBucket? cf.defaultBucket : process.env.STORAGE_BUCKET_NAME;
 }
 
 export function createFirebaseCollection<T>(e: T): FirebaseCollection<T>{

@@ -17,8 +17,8 @@ export interface JugnuConfig{
 export interface SystemAdminData{
     createdBy?: any,
     createdAt?: Date,
-    changedBy?: any,
-    changedAt?: Date
+    lastChangedBy?: any,
+    lastChangedAt?: Date
 }
 
 export enum DocumentKeyType{
