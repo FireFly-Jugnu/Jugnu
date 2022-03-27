@@ -293,14 +293,14 @@ export class FirebaseCollection<T>{
     async _prepareDataForCRUD(data: any, entityName: any) {
 
         let properties: string[] = Reflect.getMetadata("DocumentField", entityName);
-        console.log(`Processing properties of ${entityName.name}. Property list: `, properties);
+        //console.log(`Processing properties of ${entityName.name}. Property list: `, properties);
         
         const docuData:any = this._pick(data, properties);
 
         for await (const prop of properties) {
             
             const t = Reflect.getMetadata("design:type", data, prop);
-            console.log(prop, t);
+            //console.log(prop, t);
             if(t.name === 'Array'){
 
                 const itemType = Reflect.getMetadata("design:ArrayType", data, prop);
@@ -388,8 +388,8 @@ export class FirebaseCollection<T>{
     async test(data: any){
 
         const collectionName = Reflect.getMetadata("CollectionName",this.entity);
-        console.log("Collection Name:", collectionName);
-        console.log("Metadata keys:", Reflect.getMetadataKeys(this.entity));
+        //console.log("Collection Name:", collectionName);
+        //console.log("Metadata keys:", Reflect.getMetadataKeys(this.entity));
 
         let properties: string[] = Reflect.getMetadata("DocumentField", this.entity);
         console.log("DocumentField List:", properties);
