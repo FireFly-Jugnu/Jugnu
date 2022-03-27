@@ -72,7 +72,7 @@ export class FirebaseCollection<T>{
         return dataId;
     }
 
-    async query<T>(filterConditions: FirebaseQueryCondition[]): Promise<T[]>{
+    async query<T>(filterConditions: FirebaseQueryCondition[], expandReferences = false): Promise<T[]>{
 
         const collectionName = Reflect.getMetadata("CollectionName",this.entity);        
         const keyField: string = Reflect.getMetadata("DocumentKeyField",this.entity);
@@ -104,7 +104,7 @@ export class FirebaseCollection<T>{
             }
             
             for await (const prop of properties) {
-                if(docData[prop] && docData[prop].constructor.name === 'DocumentReference'){
+                if(docData[prop] && docData[prop].constructor.name === 'DocumentReference' && expandReferences){
                     const ref = await docData[prop].get();
                     docData[prop] = ref.data();
                 }
@@ -116,7 +116,7 @@ export class FirebaseCollection<T>{
         return docs;
     }
 
-    async getDocument<T>(docKey: string | number): Promise<T>{
+    async getDocument<T>(docKey: string | number, expandReferences = false): Promise<T>{
 
         const collectionName = Reflect.getMetadata("CollectionName",this.entity);
         const keyField: string = Reflect.getMetadata("DocumentKeyField",this.entity);
@@ -135,10 +135,7 @@ export class FirebaseCollection<T>{
 
         let properties: string[] = Reflect.getMetadata("DocumentField", this.entity);
         for await (const prop of properties) {
-            if(docData[prop] && docData[prop].constructor.name === 'DocumentReference'){
-                
-                //const refCollName = docData[prop].parent.id;
-                //console.log("Ref Coll Name", refCollName);
+            if(docData[prop] && docData[prop].constructor.name === 'DocumentReference' && expandReferences){
                 const ref = await docData[prop].get();
                 docData[prop] = ref.data();
             }
