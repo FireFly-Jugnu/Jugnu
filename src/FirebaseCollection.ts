@@ -104,9 +104,31 @@ export class FirebaseCollection<T>{
             }
             
             for await (const prop of properties) {
-                if(docData[prop] && docData[prop].constructor.name === 'DocumentReference' && expandReferences){
-                    const ref = await docData[prop].get();
-                    docData[prop] = ref.data();
+
+                if(docData[prop]){
+                    if(docData[prop].constructor.name === 'DocumentReference'){
+                        const ref = docData[prop];
+                        const refData = await ref.get();
+                        if(expandReferences){
+                            docData[prop] = refData.data();
+                        }
+                        else{
+                            docData[prop] = ref.path;
+                        }
+                    }
+                    if(docData[prop].constructor.name === 'Array' && docData[prop].length > 0 && docData[prop][0].constructor.name === 'DocumentReference'){
+                        const refList = docData[prop];
+                        docData[prop] = [];
+                        for await (const ref of refList) {
+                            const refData = await ref.get();
+                            if(expandReferences){
+                                docData[prop].push(refData.data());
+                            }
+                            else{
+                                docData[prop].push(ref.path);
+                            }
+                        }
+                    }
                 }
             };
 
@@ -135,9 +157,31 @@ export class FirebaseCollection<T>{
 
         let properties: string[] = Reflect.getMetadata("DocumentField", this.entity);
         for await (const prop of properties) {
-            if(docData[prop] && docData[prop].constructor.name === 'DocumentReference' && expandReferences){
-                const ref = await docData[prop].get();
-                docData[prop] = ref.data();
+            if(docData[prop]){
+                if(docData[prop].constructor.name === 'DocumentReference'){
+                    const ref = docData[prop];
+                    const refData = await ref.get();
+                    if(expandReferences){
+                        docData[prop] = refData.data();
+                    }
+                    else{
+                        docData[prop] = ref.path;
+                    }
+                }
+                if(docData[prop].constructor.name === 'Array' && docData[prop].length > 0 && docData[prop][0].constructor.name === 'DocumentReference'){
+                    const refList = docData[prop];
+                    docData[prop] = [];
+                    for(const ref of refList) {
+                        const refData = await ref.get();
+                        if(expandReferences){
+                            docData[prop].push(refData.data());
+                        }
+                        else{
+                            docData[prop].push(ref.path);
+                        }
+                    }
+                }
+
             }
         };
 
