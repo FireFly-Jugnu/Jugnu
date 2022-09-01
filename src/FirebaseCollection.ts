@@ -108,8 +108,8 @@ export class FirebaseCollection<T>{
                 if(docData[prop]){
                     if(docData[prop].constructor.name === 'DocumentReference'){
                         const ref = docData[prop];
-                        const refData = await ref.get();
                         if(expandReferences){
+                            const refData = await ref.get();
                             docData[prop] = refData.data();
                         }
                         else{
@@ -120,8 +120,8 @@ export class FirebaseCollection<T>{
                         const refList = docData[prop];
                         docData[prop] = [];
                         for await (const ref of refList) {
-                            const refData = await ref.get();
                             if(expandReferences){
+                                const refData = await ref.get();
                                 docData[prop].push(refData.data());
                             }
                             else{
